@@ -1,14 +1,21 @@
 import os
+
+import dotenv
+import cv2
+import numpy as np
+from tensorflow.keras.applications import EfficientNetB0
 import tensorflow as tf
 from dotenv import load_dotenv
 from tensorflow.keras.applications import ResNet50
 # Import correto para a função de pré-processamento
 from tensorflow.keras.applications.resnet50 import preprocess_input
+from tensorflow.keras.applications.efficientnet import preprocess_input
 
 # Carrega as variáveis do arquivo .env para o ambiente
 load_dotenv()
 
-# DATA_DIR = os.environ.get("DATA_DIR")
+
+DATA_DIR = os.environ.get("DATA_DIR")
 # IMAGES_DIR = os.path.join(DATA_DIR, os.environ.get("IMAGES_DIR"))
 
 IMAGE_SIZE = (224, 224)
@@ -16,22 +23,36 @@ BATCH_SIZE = 32
 
 try:
     tf.TF_ENABLE_ONEDNN_OPTS = 0
-
+    validation_split = 0.2
+    seed = 1
+    shuffle = True
     # Carregar dados de Treino
     train_dataset = tf.keras.utils.image_dataset_from_directory(
-        'data/treinamento',  # Usando  path fixo por enquanto
+        directory=DATA_DIR,  # Usando  path fixo por enquanto
         image_size=IMAGE_SIZE,
         batch_size=BATCH_SIZE,
-        label_mode='binary'
+        validation_split=validation_split,
+        seed=seed,
+        label_mode='binary',
+        subset="training",
+        shuffle=shuffle
+
     )
 
     # Carregar dados de Validação
     validation_dataset = tf.keras.utils.image_dataset_from_directory(
-        'data/validacao',  # Usando  path fixo por enquanto
+        directory=DATA_DIR,  # Usando  path fixo por enquanto
         image_size=IMAGE_SIZE,
         batch_size=BATCH_SIZE,
-        label_mode='binary'
+        label_mode='binary',
+        validation_split=validation_split,
+        seed=seed,
+        subset="validation",
+        shuffle=shuffle
     )
+
+    rop_ausente = 0
+    rop_presente = 1
 
     print("Classes encontradas:", train_dataset.class_names)
 
@@ -71,18 +92,10 @@ try:
     x = preprocess_input(x)
 
     x = base_model(x, training=False)
-
-    # x = tf.keras.layers.GlobalAveragePooling2D(name="global_avg_pool")(x)
-    # x = tf.keras.layers.Dropout(0.5, name="dropout_1")(x)
-    # x = tf.keras.layers.Dense(128, activation='relu', name="dense_hidden")(x)
-    # x = tf.keras.layers.Dropout(0.3, name="dropout_2")(x)
-    # outputs = tf.keras.layers.Dense(1, activation='sigmoid', name="output_layer")(x)
     x = tf.keras.layers.GlobalAveragePooling2D(name="global_avg_pool")(x)
     x = tf.keras.layers.Dropout(0.5)(x)  # Pode até aumentar para 0.7
     outputs = tf.keras.layers.Dense(1, activation='sigmoid', name="output_layer")(x)
-    # 4. Criar o Modelo Final
     model = tf.keras.Model(inputs, outputs)
-
     model.summary()
 
 
@@ -96,7 +109,7 @@ try:
 
     history = model.fit(
         train_dataset,
-        epochs=10,
+        epochs=15,
         validation_data=validation_dataset
     )
 
@@ -108,6 +121,8 @@ try:
 
     # quanto mais perto o val_accuracy da accuracy melhor, e val_loss deve diminuir conforme as epocas
 
-
+    test_loss, text_acc = model.evaluate(validation_dataset, verbose=2)
+    print(test_loss, text_acc)
+    model.summary()
 except Exception as e:
     print("Ocorreu um erro:", e)
