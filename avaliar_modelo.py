@@ -39,7 +39,7 @@ try:
     predictions = model.predict(test_dataset)
 
     # Converte para 0 ou 1 (se > 0.5 é classe 1, senão classe 0)
-    predicted_labels = (predictions > 0.3).astype(int).flatten()
+    predicted_labels = (predictions > 0.5).astype(int).flatten()
 
     # 4. Pegar os Labels Verdadeiros
     true_labels = []

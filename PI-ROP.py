@@ -1,8 +1,13 @@
 import os
 import tensorflow as tf
+
+import numpy as np
 from dotenv import load_dotenv
 from tensorflow.keras.applications import ResNet50
 from tensorflow.keras.applications.resnet50 import preprocess_input
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import classification_report, confusion_matrix
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
@@ -180,6 +185,54 @@ try:
     test_loss, test_acc = model.evaluate(test_dataset, verbose=2)
     print(f"Loss no Teste: {test_loss:.4f}")
     print(f"Acurácia no Teste: {test_acc:.4f}")
+
+    # 1. Carregar o Modelo
+    print(f"Carregando modelo: meu_modelo_rop_finetuned.keras")
+    model = best_model
+
+    # 2. Carregar dados de Teste (IMPORTANTE: shuffle=False para manter a ordem)
+    print("Carregando imagens de teste...")
+    test_dataset = tf.keras.utils.image_dataset_from_directory(
+        directory=TEST_DIR,
+        image_size=IMAGE_SIZE,
+        batch_size=BATCH_SIZE,
+        label_mode='binary',
+        shuffle=False  # CRUCIAL: Não embaralhar para comparar com os labels verdadeiros
+    )
+
+    class_names = test_dataset.class_names
+    print(f"Classes: {class_names}")
+
+    # 3. Fazer Predições
+    print("Gerando predições...")
+    # Pega as predições (probabilidades entre 0 e 1)
+    predictions = model.predict(test_dataset)
+
+    # Converte para 0 ou 1 (se > 0.5 é classe 1, senão classe 0)
+    predicted_labels = (predictions > 0.5).astype(int).flatten()
+
+    # 4. Pegar os Labels Verdadeiros
+    true_labels = []
+    for images, labels in test_dataset:
+        true_labels.extend(labels.numpy())
+    true_labels = np.array(true_labels).flatten().astype(int)
+
+    # 5. Gerar Matriz de Confusão
+    cm = confusion_matrix(true_labels, predicted_labels)
+
+    # 6. Plotar a Matriz
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                xticklabels=class_names,
+                yticklabels=class_names)
+    plt.xlabel('Predito pelo Modelo')
+    plt.ylabel('Real (Verdadeiro)')
+    plt.title('Matriz de Confusão - Detecção de ROP')
+    plt.show()
+
+    # 7. Imprimir Relatório Completo (Precisão, Recall, F1-Score)
+    print("\n--- Relatório de Classificação ---")
+    print(classification_report(true_labels, predicted_labels, target_names=class_names))
 
 except Exception as e:
     print("Ocorreu um erro:", e)
