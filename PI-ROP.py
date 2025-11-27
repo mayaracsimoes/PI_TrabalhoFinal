@@ -121,9 +121,7 @@ try:
     base_model.trainable = True
 
     # 2. Congelar as camadas iniciais (Fine-tune apenas no topo)
-    # O ResNet50 tem cerca de 175 camadas.
-    # Vamos deixar as primeiras 140 congeladas (detectam linhas/borda)
-    # E treinar apenas as últimas 35 (detectam texturas complexas/ROP)
+    # treinar apenas as últimas 35 (detectam texturas complexas/ROP)
     fine_tune_at = 140
 
     print(f"Número total de camadas no base_model: {len(base_model.layers)}")
@@ -132,8 +130,8 @@ try:
     for layer in base_model.layers[:fine_tune_at]:
         layer.trainable = False
 
-    # 3. Recompilar com Learning Rate MUITO BAIXO
-    # Usamos 1e-5 (0.00001) para ajustes microscópicos.
+    # 3. Recompilar com Learning Rate baixo
+    # Usamos 1e-5 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-5),
         loss='binary_crossentropy',
@@ -160,7 +158,7 @@ try:
 
     # 5. Treinar a Fase 2
     # Total de épocas = Épocas da Fase 1 + Novas Épocas
-    total_epochs = 15 + 20  # Vamos tentar mais 20 épocas
+    total_epochs = 15 + 20  # mais 20 épocas
 
     history_fine = model.fit(
         train_dataset,
@@ -190,14 +188,14 @@ try:
     print(f"Carregando modelo: meu_modelo_rop_finetuned.keras")
     model = best_model
 
-    # 2. Carregar dados de Teste (IMPORTANTE: shuffle=False para manter a ordem)
+    # 2. Carregar dados de Teste
     print("Carregando imagens de teste...")
     test_dataset = tf.keras.utils.image_dataset_from_directory(
         directory=TEST_DIR,
         image_size=IMAGE_SIZE,
         batch_size=BATCH_SIZE,
         label_mode='binary',
-        shuffle=False  # CRUCIAL: Não embaralhar para comparar com os labels verdadeiros
+        shuffle=False
     )
 
     class_names = test_dataset.class_names
